@@ -46,7 +46,7 @@ public class Http11Processor implements Runnable, Processor {
                 content = "Hello world!";
             }
 
-            String response = parse200Response(content);
+            String response = parse200Response(requestUri, content);
             outputStream.write(response.getBytes());
             outputStream.flush();
         } catch (IOException | UncheckedServletException e) {
@@ -54,10 +54,12 @@ public class Http11Processor implements Runnable, Processor {
         }
     }
 
-    private String parse200Response(String content) {
+    private String parse200Response(String requestUri, String content) {
+        String contentType = "text/html;charset=utf-8 ";
+        if (requestUri.endsWith(".css")) contentType = "text/css;charset=utf-8 ";
         return String.join("\r\n",
             "HTTP/1.1 200 OK ",
-            "Content-Type: text/html;charset=utf-8 ",
+            "Content-Type: " + contentType,
             "Content-Length: " + content.getBytes().length + " ",
             "",
             content);
