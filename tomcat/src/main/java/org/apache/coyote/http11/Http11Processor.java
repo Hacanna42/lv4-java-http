@@ -9,10 +9,13 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Http11Processor implements Runnable, Processor {
 
@@ -30,31 +33,20 @@ public class Http11Processor implements Runnable, Processor {
         process(connection);
     }
 
-    private String getBody(String requestUri) throws IOException {
-        if (requestUri.equals("/")) {
-            return "Hello world!";
-        }
-
-        final URL resource = getClass().getClassLoader().getResource("static" + requestUri);
-        return new String(Files.readAllBytes(new File(resource.getFile()).toPath()));
-    }
-
     @Override
     public void process(final Socket connection) {
         try (final var inputStream = connection.getInputStream();
-             final var outputStream = connection.getOutputStream();
-             final var reader = new BufferedReader(new InputStreamReader(inputStream))) {
+             final var outputStream = connection.getOutputStream()) {
 
-            String requestUri = reader.readLine().split(" ")[1];
-            final var responseBody = getBody(requestUri);
+            List<String> request = getRequest(inputStream);
+            String requestUri = getUriFromRequest(request);
+            var content = readStaticFile(requestUri);
 
-            final var response = String.join("\r\n",
-                "HTTP/1.1 200 OK ",
-                "Content-Type: text/html;charset=utf-8 ",
-                "Content-Length: " + responseBody.getBytes().length + " ",
-                "",
-                responseBody);
+            if (content == null) {
+                content = "Hello world!";
+            }
 
+            String response = parse200Response(content);
             outputStream.write(response.getBytes());
             outputStream.flush();
         } catch (IOException | UncheckedServletException e) {
@@ -62,4 +54,37 @@ public class Http11Processor implements Runnable, Processor {
         }
     }
 
+    private String parse200Response(String content) {
+        return String.join("\r\n",
+            "HTTP/1.1 200 OK ",
+            "Content-Type: text/html;charset=utf-8 ",
+            "Content-Length: " + content.getBytes().length + " ",
+            "",
+            content);
+    }
+
+    private String readStaticFile(String requestUri) throws IOException {
+        if (requestUri.equals("/")) {
+            return null;
+        }
+
+        final URL resource = getClass().getClassLoader().getResource("static" + requestUri);
+        return new String(Files.readAllBytes(new File(resource.getFile()).toPath()));
+    }
+
+    private String getUriFromRequest(List<String> request) {
+        return request.getFirst().split(" ")[1];
+    }
+
+    private List<String> getRequest(InputStream inputStream) throws IOException {
+        List<String> request = new ArrayList<>();
+        try (final var reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                request.add(line);
+            }
+        }
+
+        return request;
+    }
 }
