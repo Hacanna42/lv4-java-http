@@ -78,13 +78,12 @@ public class Http11Processor implements Runnable, Processor {
 
     private List<String> getRequest(InputStream inputStream) throws IOException {
         List<String> request = new ArrayList<>();
-        try (final var reader = new BufferedReader(new InputStreamReader(inputStream))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                request.add(line);
-            }
+        var reader = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (line.isEmpty()) break;
+            request.add(line);
         }
-
         return request;
     }
 }
