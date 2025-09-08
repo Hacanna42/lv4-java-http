@@ -1,26 +1,27 @@
 package org.apache.coyote.http11;
 
-import com.techcourse.db.InMemoryUserRepository;
-import com.techcourse.exception.UncheckedServletException;
-import com.techcourse.model.User;
-
-import org.apache.coyote.Processor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+
+import org.apache.coyote.Processor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.techcourse.db.InMemoryUserRepository;
+import com.techcourse.exception.UncheckedServletException;
+import com.techcourse.model.User;
 
 public class Http11Processor implements Runnable, Processor {
 
@@ -53,7 +54,7 @@ public class Http11Processor implements Runnable, Processor {
                 boolean login = user.checkPassword(requestQueries.get("password"));
                 System.out.println(user);
             }
-            var content = readStaticFile(requestPath);
+            String content = readStaticFile(requestPath);
 
             if (content == null) {
                 content = "Hello world!";
@@ -62,7 +63,7 @@ public class Http11Processor implements Runnable, Processor {
             String response = parse200Response(requestPath, content);
             outputStream.write(response.getBytes());
             outputStream.flush();
-        } catch (IOException | UncheckedServletException e) {
+        } catch (IOException | UncheckedServletException | URISyntaxException e) {
             log.error(e.getMessage(), e);
         }
     }
@@ -99,18 +100,18 @@ public class Http11Processor implements Runnable, Processor {
     }
 
     private String parse200Response(String requestUri, String content) {
-        String contentType = "text/html;charset=utf-8 ";
+        String contentType = "text/html;charset=utf-8";
         if (requestUri.endsWith(".css"))
-            contentType = "text/css;charset=utf-8 ";
+            contentType = "text/css;charset=utf-8";
         return String.join("\r\n",
-            "HTTP/1.1 200 OK ",
+            "HTTP/1.1 200 OK",
             "Content-Type: " + contentType,
-            "Content-Length: " + content.getBytes().length + " ",
+            "Content-Length: " + content.getBytes().length,
             "",
             content);
     }
 
-    private String readStaticFile(String requestUri) throws IOException {
+    private String readStaticFile(String requestUri) throws IOException, URISyntaxException {
         if (requestUri.equals("/")) {
             return null;
         }
@@ -120,7 +121,7 @@ public class Http11Processor implements Runnable, Processor {
         }
 
         final URL resource = getClass().getClassLoader().getResource("static" + requestUri);
-        return new String(Files.readAllBytes(new File(resource.getFile()).toPath()));
+        return new String(Files.readAllBytes(Paths.get(resource.toURI())));
     }
 
     private String getUriFromRequest(List<String> request) {
