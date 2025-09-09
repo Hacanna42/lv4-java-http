@@ -18,7 +18,20 @@ public class QueryString {
         return new QueryString(this.parameters);
     }
 
+    public boolean has(String... keys) {
+        for (String key : keys) {
+            if (!parameters.containsKey(key)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public String get(String key) {
+        if (!parameters.containsKey(key)) {
+            throw new IllegalArgumentException("QueryString에서 다음 key를 찾을 수 없습니다. " + key);
+        }
+
         return parameters.get(key);
     }
 

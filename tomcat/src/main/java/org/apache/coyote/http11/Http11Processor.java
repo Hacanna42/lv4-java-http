@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import org.apache.coyote.HttpRequest;
+import org.apache.coyote.HttpResponse;
 import org.apache.coyote.Processor;
 import org.apache.coyote.QueryString;
 import org.slf4j.Logger;
@@ -40,17 +41,32 @@ public class Http11Processor implements Runnable, Processor {
 
             // Request Parsing
             HttpRequest httpRequest = new HttpRequest(inputStream);
+            HttpResponse httpResponse = new HttpResponse(outputStream);
+
             String requestPath = httpRequest.getPath();
             QueryString queryString = httpRequest.getQueryString();
 
-            // Location Handling
+            // Content-Type Handling
+            determineContentType(httpResponse, requestPath);
+
+            // Location Handling - /login
             if (requestPath.equals("/login")) {
-                String account = queryString.get("account");
-                User user =
-                    InMemoryUserRepository.findByAccount(account).orElseThrow(() -> new IllegalArgumentException("해당 "
-                        + "유저를 찾을 수 없습니다. " + account));
-                boolean login = user.checkPassword(queryString.get("password"));
-                System.out.println(user);
+                if (queryString.has("account", "password")) {
+                    String account = queryString.get("account");
+                    String password = queryString.get("password");
+                    User user = InMemoryUserRepository.findByAccount(account)
+                        .orElseThrow(() -> new IllegalArgumentException("해당 유저를 찾을 수 없습니다. " + account));
+                    boolean login = user.checkPassword(password);
+                    if (login) {
+                        System.out.println(user);
+                        httpResponse.setStatusCode(302);
+                        requestPath = "/index.html";
+                    } else {
+                        requestPath = "/401.html";
+                    }
+                } else {
+                    // 로그인 정보가 없으므로 그냥 넘김
+                }
             }
 
             String content = readStaticFile(requestPath);
@@ -59,24 +75,30 @@ public class Http11Processor implements Runnable, Processor {
             }
 
             // HTTP Response
-            String response = parse200Response(requestPath, content);
-            outputStream.write(response.getBytes());
-            outputStream.flush();
+            httpResponse.response(content);
         } catch (IOException | UncheckedServletException | URISyntaxException e) {
             log.error(e.getMessage(), e);
         }
     }
 
-    private String parse200Response(String requestUri, String content) {
-        String contentType = "text/html;charset=utf-8";
-        if (requestUri.endsWith(".css"))
-            contentType = "text/css;charset=utf-8";
-        return String.join("\r\n",
-            "HTTP/1.1 200 OK",
-            "Content-Type: " + contentType,
-            "Content-Length: " + content.getBytes().length,
-            "",
-            content);
+    private void determineContentType(HttpResponse httpResponse, String requestPath) {
+        if (requestPath.endsWith(".css")) {
+            httpResponse.setExtension("css");
+        } else if (requestPath.endsWith(".js")) {
+            httpResponse.setExtension("js");
+        } else if (requestPath.endsWith(".html")) {
+            httpResponse.setExtension("html");
+        } else if (requestPath.endsWith(".ico")) {
+            httpResponse.setExtension("ico");
+        } else if (requestPath.endsWith(".png")) {
+            httpResponse.setExtension("png");
+        } else if (requestPath.endsWith(".jpg") || requestPath.endsWith(".jpeg")) {
+            httpResponse.setExtension("jpeg");
+        } else if (requestPath.endsWith(".svg")) {
+            httpResponse.setExtension("svg");
+        } else {
+            httpResponse.setExtension("html");
+        }
     }
 
     private String readStaticFile(String requestUri) throws IOException, URISyntaxException {
