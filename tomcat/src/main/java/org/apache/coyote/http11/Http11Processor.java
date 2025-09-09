@@ -1,21 +1,15 @@
 package org.apache.coyote.http11;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
+import org.apache.coyote.HttpRequest;
 import org.apache.coyote.Processor;
+import org.apache.coyote.QueryString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,59 +38,33 @@ public class Http11Processor implements Runnable, Processor {
         try (final var inputStream = connection.getInputStream();
              final var outputStream = connection.getOutputStream()) {
 
-            List<String> request = getRequest(inputStream);
-            String requestPath = getPathFromRequest(request);
-            Map<String, String> requestQueries = getQueriesFromRequest(request);
+            // Request Parsing
+            HttpRequest httpRequest = new HttpRequest(inputStream);
+            String requestPath = httpRequest.getPath();
+            QueryString queryString = httpRequest.getQueryString();
 
+            // Location Handling
             if (requestPath.equals("/login")) {
-                String account = requestQueries.get("account");
-                User user = InMemoryUserRepository.findByAccount(account).orElseThrow();
-                boolean login = user.checkPassword(requestQueries.get("password"));
+                String account = queryString.get("account");
+                User user =
+                    InMemoryUserRepository.findByAccount(account).orElseThrow(() -> new IllegalArgumentException("해당 "
+                        + "유저를 찾을 수 없습니다. " + account));
+                boolean login = user.checkPassword(queryString.get("password"));
                 System.out.println(user);
             }
-            String content = readStaticFile(requestPath);
 
+            String content = readStaticFile(requestPath);
             if (content == null) {
                 content = "Hello world!";
             }
 
+            // HTTP Response
             String response = parse200Response(requestPath, content);
             outputStream.write(response.getBytes());
             outputStream.flush();
         } catch (IOException | UncheckedServletException | URISyntaxException e) {
             log.error(e.getMessage(), e);
         }
-    }
-
-    private String getPathFromRequest(List<String> request) {
-        String uri = getUriFromRequest(request);
-        int index = uri.indexOf("?");
-        if (index == -1) {
-            return uri;
-        }
-
-        return uri.substring(0, index);
-    }
-
-    private Map<String, String> getQueriesFromRequest(List<String> request) {
-        String uri = getUriFromRequest(request);
-        int index = uri.indexOf("?");
-        if (index == -1) {
-            return null;
-        }
-        String path = uri.substring(0, index);
-        String queryString = uri.substring(index + 1);
-        String[] keyValue = queryString.split("&");
-        Map<String, String> map = new HashMap<>();
-
-        for (int i = 0; i < keyValue.length; i++) {
-            String cur = keyValue[i];
-            String key = cur.split("=")[0];
-            String value = cur.split("=")[1];
-            map.put(key, value);
-        }
-
-        return map;
     }
 
     private String parse200Response(String requestUri, String content) {
@@ -121,22 +89,9 @@ public class Http11Processor implements Runnable, Processor {
         }
 
         final URL resource = getClass().getClassLoader().getResource("static" + requestUri);
-        return new String(Files.readAllBytes(Paths.get(resource.toURI())));
-    }
-
-    private String getUriFromRequest(List<String> request) {
-        return request.getFirst().split(" ")[1];
-    }
-
-    private List<String> getRequest(InputStream inputStream) throws IOException {
-        List<String> request = new ArrayList<>();
-        var reader = new BufferedReader(new InputStreamReader(inputStream));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            if (line.isEmpty())
-                break;
-            request.add(line);
+        if (resource == null) {
+            throw new IllegalArgumentException("해당 파일을 찾을 수 없습니다:" + requestUri);
         }
-        return request;
+        return new String(Files.readAllBytes(Paths.get(resource.toURI())));
     }
 }
