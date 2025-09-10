@@ -28,6 +28,10 @@ public class HttpRequest {
         this.method = initMethod();
     }
 
+    public String getCookie(String key) {
+        return header.getCookie(key);
+    }
+
     public boolean hasCookie(String... keys) {
         return header.hasCookie(keys);
     }

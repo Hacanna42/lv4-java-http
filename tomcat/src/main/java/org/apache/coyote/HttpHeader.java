@@ -1,5 +1,7 @@
 package org.apache.coyote;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class HttpHeader {
@@ -9,6 +11,10 @@ public class HttpHeader {
     public HttpHeader(List<String> headerLines) {
         this.headerLines = headerLines;
         this.httpCookie = initCookie();
+    }
+
+    public String getCookie(String key) {
+        return URLDecoder.decode(httpCookie.get(key), StandardCharsets.UTF_8);
     }
 
     public boolean hasCookie(String... keys) {

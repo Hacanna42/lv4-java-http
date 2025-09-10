@@ -62,19 +62,19 @@ public class HttpResponse {
 
         final String contentTypeLine = switch (extension) {
             case "html" -> "text/html;charset=utf-8";
-            case "htm"  -> "text/html;charset=utf-8";
-            case "css"  -> "text/css;charset=utf-8";
-            case "js"   -> "application/javascript;charset=utf-8";
+            case "htm" -> "text/html;charset=utf-8";
+            case "css" -> "text/css;charset=utf-8";
+            case "js" -> "application/javascript;charset=utf-8";
             case "json" -> "application/json;charset=utf-8";
-            case "xml"  -> "application/xml;charset=utf-8";
+            case "xml" -> "application/xml;charset=utf-8";
             case "jpg", "jpeg" -> "image/jpeg";
-            case "png"  -> "image/png";
-            case "gif"  -> "image/gif";
-            case "svg"  -> "image/svg+xml";
-            case "ico"  -> "image/x-icon";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "svg" -> "image/svg+xml";
+            case "ico" -> "image/x-icon";
             case "woff" -> "font/woff";
-            case "woff2"-> "font/woff2";
-            default     -> "text/plain;charset=utf-8";
+            case "woff2" -> "font/woff2";
+            default -> "text/plain;charset=utf-8";
         };
 
         headers.add("Content-Type: " + contentTypeLine);

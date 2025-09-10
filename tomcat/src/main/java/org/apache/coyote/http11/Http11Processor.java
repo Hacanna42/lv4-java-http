@@ -6,13 +6,17 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.apache.coyote.HttpBody;
 import org.apache.coyote.HttpRequest;
 import org.apache.coyote.HttpResponse;
 import org.apache.coyote.Processor;
 import org.apache.coyote.QueryString;
+import org.apache.coyote.Session;
+import org.apache.coyote.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +29,11 @@ public class Http11Processor implements Runnable, Processor {
     private static final Logger log = LoggerFactory.getLogger(Http11Processor.class);
 
     private final Socket connection;
+    private final SessionManager sessionManager;
 
     public Http11Processor(final Socket connection) {
         this.connection = connection;
+        this.sessionManager = SessionManager.getInstance();
     }
 
     @Override
@@ -43,26 +49,26 @@ public class Http11Processor implements Runnable, Processor {
 
             // Request Parsing
             HttpRequest httpRequest = new HttpRequest(inputStream);
-            HttpResponse httpResponse = new HttpResponse(outputStream);
-
             String requestPath = httpRequest.getPath();
             QueryString queryString = httpRequest.getQueryString();
+
+            HttpResponse httpResponse = new HttpResponse(outputStream);
 
             // Content-Type Handling
             determineContentType(httpResponse, requestPath);
 
-            // Cookie Handling - JSESSIONID
-            if (!httpRequest.hasCookie("JSESSIONID")) {
-                httpResponse.addCookie("JSESSIONID", "1234567890");
-            }
-
             // Location Handling - /login
             if (requestPath.equals("/login") && httpRequest.isGet()) {
                 requestPath = "/login.html";
+
+                User user = getUserFromJSession(httpRequest);
+                if (user != null) {
+                    httpResponse.setStatusCode(302);
+                    requestPath = "/index.html";
+                }
             }
 
             if (requestPath.equals("/login") && httpRequest.isPost()) {
-                requestPath = "/login.html";
                 HttpBody httpBody = httpRequest.getBody();
                 if (httpBody.hasKey("account", "password")) {
                     String account = httpBody.getValue("account");
@@ -71,6 +77,7 @@ public class Http11Processor implements Runnable, Processor {
                         .orElseThrow(() -> new IllegalArgumentException("해당 유저를 찾을 수 없습니다. " + account));
                     boolean login = user.checkPassword(password);
                     if (login) {
+                        addJSession(httpResponse, user);
                         System.out.println(user);
                         httpResponse.setStatusCode(302);
                         requestPath = "/index.html";
@@ -99,6 +106,7 @@ public class Http11Processor implements Runnable, Processor {
                     }
 
                     InMemoryUserRepository.save(user);
+                    addJSession(httpResponse, user);
                     System.out.println("회원가입 성공: " + user);
                     requestPath = "/index.html";
                     httpResponse.setStatusCode(302);
@@ -117,6 +125,26 @@ public class Http11Processor implements Runnable, Processor {
         } catch (IOException | UncheckedServletException | URISyntaxException e) {
             log.error(e.getMessage(), e);
         }
+    }
+
+    private User getUserFromJSession(HttpRequest httpRequest) {
+        if (httpRequest.hasCookie("JSESSIONID")) {
+            String jSessionId = httpRequest.getCookie("JSESSIONID");
+            Session session = sessionManager.find(jSessionId);
+            if (session != null) {
+                return (User) session.getAttribute("user");
+            }
+        }
+
+        return null;
+    }
+
+    private void addJSession(HttpResponse httpResponse, User user) {
+        String jSessionId = UUID.randomUUID().toString();
+        httpResponse.addCookie("JSESSIONID", jSessionId);
+        Session session = new Session(jSessionId);
+        session.setAttribute("user", user);
+        sessionManager.add(session);
     }
 
     private void determineContentType(HttpResponse httpResponse, String requestPath) {
