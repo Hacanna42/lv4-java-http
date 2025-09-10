@@ -30,7 +30,7 @@ class ConcurrencyTest {
         // firstThread보다 늦게 시작한 secondThread가 먼저 실행될 수도 있다.
         firstThread.start();
         secondThread.start();
-        secondThread.join(); // secondThread가 먼저 gugu로 가입했다.
+        secondThread.join(); // secondThread가 먼저 gugu로 가입했다.secondThread가
         firstThread.join();
 
         // 이미 gugu로 가입한 사용자가 있어서 UserServlet.join() 메서드의 if절 조건은 false가 되고 크기는 1이다.
