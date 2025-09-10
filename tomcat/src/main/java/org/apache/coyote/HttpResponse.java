@@ -2,15 +2,19 @@ package org.apache.coyote;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class HttpResponse {
 
     private final OutputStream outputStream;
+    private final List<String> headers;
     private String extension;
     private int statusCode;
 
     public HttpResponse(OutputStream outputStream) {
         this.outputStream = outputStream;
+        this.headers = new ArrayList<>();
         this.statusCode = 200;
     }
 
@@ -27,6 +31,10 @@ public class HttpResponse {
 
     public void setStatusCode(int statusCode) {
         this.statusCode = statusCode;
+    }
+
+    public void addCookie(String key, String value) {
+        this.headers.add("Set-Cookie: " + key + "=" + value);
     }
 
     private String parseResponse(String content) {
@@ -69,11 +77,15 @@ public class HttpResponse {
             default     -> "text/plain;charset=utf-8";
         };
 
+        headers.add("Content-Type: " + contentTypeLine);
+        headers.add("Content-Length: " + content.getBytes().length);
+
+        String headerSection = String.join("\r\n", headers);
+
         return String.join(
             "\r\n",
             statusCodeLine,
-            "Content-Type: " + contentTypeLine,
-            "Content-Length: " + content.getBytes().length,
+            headerSection,
             "",
             content
         );

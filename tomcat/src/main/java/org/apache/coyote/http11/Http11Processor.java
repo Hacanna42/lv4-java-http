@@ -6,7 +6,9 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Optional;
 
+import org.apache.coyote.HttpBody;
 import org.apache.coyote.HttpRequest;
 import org.apache.coyote.HttpResponse;
 import org.apache.coyote.Processor;
@@ -49,11 +51,22 @@ public class Http11Processor implements Runnable, Processor {
             // Content-Type Handling
             determineContentType(httpResponse, requestPath);
 
+            // Cookie Handling - JSESSIONID
+            if (!httpRequest.hasCookie("JSESSIONID")) {
+                httpResponse.addCookie("JSESSIONID", "1234567890");
+            }
+
             // Location Handling - /login
-            if (requestPath.equals("/login")) {
-                if (queryString.has("account", "password")) {
-                    String account = queryString.get("account");
-                    String password = queryString.get("password");
+            if (requestPath.equals("/login") && httpRequest.isGet()) {
+                requestPath = "/login.html";
+            }
+
+            if (requestPath.equals("/login") && httpRequest.isPost()) {
+                requestPath = "/login.html";
+                HttpBody httpBody = httpRequest.getBody();
+                if (httpBody.hasKey("account", "password")) {
+                    String account = httpBody.getValue("account");
+                    String password = httpBody.getValue("password");
                     User user = InMemoryUserRepository.findByAccount(account)
                         .orElseThrow(() -> new IllegalArgumentException("해당 유저를 찾을 수 없습니다. " + account));
                     boolean login = user.checkPassword(password);
@@ -65,7 +78,32 @@ public class Http11Processor implements Runnable, Processor {
                         requestPath = "/401.html";
                     }
                 } else {
-                    // 로그인 정보가 없으므로 그냥 넘김
+                    requestPath = "/401.html";
+                }
+            }
+
+            // Location Handling - /register
+            if (requestPath.equals("/register") && httpRequest.isGet()) {
+                requestPath = "/register.html";
+            }
+            if (requestPath.equals("/register") && httpRequest.isPost()) {
+                HttpBody httpBody = httpRequest.getBody();
+                if (httpBody.hasKey("account", "email", "password")) {
+                    String account = httpBody.getValue("account");
+                    String email = httpBody.getValue("email");
+                    String password = httpBody.getValue("password");
+                    User user = new User(account, password, email);
+                    Optional<User> foundUser = InMemoryUserRepository.findByAccount(account);
+                    if (foundUser.isPresent()) {
+                        throw new IllegalArgumentException("이미 존재하는 계정입니다. " + account);
+                    }
+
+                    InMemoryUserRepository.save(user);
+                    System.out.println("회원가입 성공: " + user);
+                    requestPath = "/index.html";
+                    httpResponse.setStatusCode(302);
+                } else {
+                    requestPath = "/register.html";
                 }
             }
 
@@ -101,18 +139,14 @@ public class Http11Processor implements Runnable, Processor {
         }
     }
 
-    private String readStaticFile(String requestUri) throws IOException, URISyntaxException {
-        if (requestUri.equals("/")) {
+    private String readStaticFile(String path) throws IOException, URISyntaxException {
+        if (path.equals("/")) {
             return null;
         }
 
-        if (requestUri.equals("/login")) {
-            requestUri = "/login.html";
-        }
-
-        final URL resource = getClass().getClassLoader().getResource("static" + requestUri);
+        final URL resource = getClass().getClassLoader().getResource("static" + path);
         if (resource == null) {
-            throw new IllegalArgumentException("해당 파일을 찾을 수 없습니다:" + requestUri);
+            throw new IllegalArgumentException("해당 파일을 찾을 수 없습니다:" + path);
         }
         return new String(Files.readAllBytes(Paths.get(resource.toURI())));
     }

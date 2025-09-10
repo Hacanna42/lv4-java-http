@@ -1,5 +1,7 @@
 package org.apache.coyote;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,8 +33,8 @@ public class QueryString {
         if (!parameters.containsKey(key)) {
             throw new IllegalArgumentException("QueryString에서 다음 key를 찾을 수 없습니다. " + key);
         }
-
-        return parameters.get(key);
+        String value = parameters.get(key);
+        return URLDecoder.decode(value, StandardCharsets.UTF_8);
     }
 
     private Map<String, String> parseQueryString(String uri) {
