@@ -46,8 +46,8 @@ public class QueryString {
         Map<String, String> parsedQuery = new HashMap<>();
         String[] queries = uri.substring(index + 1).split("&");
         for (String query : queries) {
-            String key = query.split("=")[0];
-            String value = query.split("=")[1];
+            String key = query.split("=", 2)[0];
+            String value = query.split("=", 2)[1];
             parsedQuery.put(key, value);
         }
 

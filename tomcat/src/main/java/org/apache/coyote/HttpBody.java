@@ -17,6 +17,10 @@ public class HttpBody {
         this.formData = parseFormData(bodyLines);
     }
 
+    public static HttpBody from(List<String> requestLines) {
+        return new HttpBody(requestLines.stream().dropWhile(line -> !line.isEmpty()).skip(1).toList());
+    }
+
     public boolean hasKey(String... keys) {
         for (String key : keys) {
             if (!formData.containsKey(key)) {
@@ -43,7 +47,7 @@ public class HttpBody {
         String body = bodyLines.getFirst();
         String[] keyValues = body.split("&");
         for (String keyValue : keyValues) {
-            String[] parts = keyValue.split("=");
+            String[] parts = keyValue.split("=", 2);
             if (parts.length == 2) {
                 parameters.put(parts[0], parts[1]);
             }

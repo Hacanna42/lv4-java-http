@@ -6,7 +6,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,7 +13,6 @@ import org.apache.coyote.HttpBody;
 import org.apache.coyote.HttpRequest;
 import org.apache.coyote.HttpResponse;
 import org.apache.coyote.Processor;
-import org.apache.coyote.QueryString;
 import org.apache.coyote.Session;
 import org.apache.coyote.SessionManager;
 import org.slf4j.Logger;
@@ -50,7 +48,6 @@ public class Http11Processor implements Runnable, Processor {
             // Request Parsing
             HttpRequest httpRequest = new HttpRequest(inputStream);
             String requestPath = httpRequest.getPath();
-            QueryString queryString = httpRequest.getQueryString();
 
             HttpResponse httpResponse = new HttpResponse(outputStream);
 

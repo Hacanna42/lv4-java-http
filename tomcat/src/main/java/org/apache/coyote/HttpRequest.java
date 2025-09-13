@@ -7,53 +7,43 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HttpRequest {
-    private final String request;
-    private final HttpHeader header;
+    private final HttpMethod method;
+    private final HttpPath path;
+    private final HttpVersion version;
+    private final HttpHeaders headers;
     private final HttpBody body;
 
-    private final QueryString queryString;
-    private final String method;
-    private final String path;
-    private final String uri;
-
     public HttpRequest(InputStream inputStream) {
-        List<String> rawInput = readInputStream(inputStream);
-        this.request = rawInput.getFirst();
-        this.header = new HttpHeader(rawInput.stream().skip(1).takeWhile(line -> !line.isEmpty()).toList());
-        this.body = new HttpBody(rawInput.stream().dropWhile(line -> !line.isEmpty()).skip(1).toList());
-
-        this.path = initPath();
-        this.uri = initUri();
-        this.queryString = initQueryString();
-        this.method = initMethod();
+        List<String> requestLines = readInputStream(inputStream);
+        this.method = HttpMethod.from(requestLines);
+        this.path = HttpPath.from(requestLines);
+        this.version = HttpVersion.from(requestLines);
+        this.headers = HttpHeaders.from(requestLines);
+        this.body = HttpBody.from(requestLines);
     }
 
     public String getCookie(String key) {
-        return header.getCookie(key);
+        return headers.getCookie(key);
     }
 
     public boolean hasCookie(String... keys) {
-        return header.hasCookie(keys);
+        return headers.hasCookie(keys);
     }
 
     public String getUri() {
-        return uri;
+        return path.getUri();
     }
 
     public String getPath() {
-        return path;
-    }
-
-    public QueryString getQueryString() {
-        return queryString.copy();
+        return path.getPath();
     }
 
     public boolean isGet() {
-        return this.method.equals("GET");
+        return this.method == HttpMethod.GET;
     }
 
     public boolean isPost() {
-        return this.method.equals("POST");
+        return this.method == HttpMethod.POST;
     }
 
     public HttpBody getBody() {
@@ -98,27 +88,5 @@ public class HttpRequest {
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }
-    }
-
-    private String initPath() {
-        String initialUri = initUri();
-        int index = initialUri.indexOf("?");
-        if (index == -1) {
-            return initialUri;
-        }
-
-        return initialUri.substring(0, index);
-    }
-
-    private String initUri() {
-        return this.request.split(" ")[1];
-    }
-
-    private QueryString initQueryString() {
-        return new QueryString(getUri());
-    }
-
-    private String initMethod() {
-        return this.request.split(" ")[0];
     }
 }
