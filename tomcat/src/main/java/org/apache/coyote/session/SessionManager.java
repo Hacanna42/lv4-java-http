@@ -1,11 +1,11 @@
-package org.apache.coyote;
+package org.apache.coyote.session;
 
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
 public class SessionManager {
     private static final SessionManager INSTANCE = new SessionManager();
-    private final Map<String, Session> sessions = new HashMap<>();
+    private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
     private SessionManager() {}
 

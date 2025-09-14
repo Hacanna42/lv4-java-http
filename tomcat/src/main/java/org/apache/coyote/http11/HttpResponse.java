@@ -1,4 +1,4 @@
-package org.apache.coyote;
+package org.apache.coyote.http11;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -31,6 +31,10 @@ public class HttpResponse {
 
     public void setStatusCode(int statusCode) {
         this.statusCode = statusCode;
+    }
+
+    public void setHeader(String name, String value) {
+        this.headers.add(name + ": " + value);
     }
 
     public void addCookie(String key, String value) {

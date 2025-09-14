@@ -1,4 +1,4 @@
-package org.apache.coyote;
+package org.apache.coyote.http11;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -52,41 +52,45 @@ public class HttpRequest {
 
     private List<String> readInputStream(InputStream inputStream) {
         List<String> lines = new ArrayList<>();
+        var reader = new BufferedReader(new InputStreamReader(inputStream, java.nio.charset.StandardCharsets.US_ASCII));
         try {
-            var reader = new BufferedReader(
-                new InputStreamReader(inputStream, java.nio.charset.StandardCharsets.US_ASCII));
-
-            String line;
-            int contentLength = 0;
-
-            // 1) 헤더 읽기
-            while ((line = reader.readLine()) != null) {
-                lines.add(line);
-                if (line.isEmpty())
-                    break; // 빈 줄 = 헤더 끝
-
-                if (line.regionMatches(true, 0, "Content-Length:", 0, "Content-Length:".length())) {
-                    contentLength = Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
-                }
-            }
-
-            // 2) 바디 읽기
-            if (contentLength > 0) {
-                char[] bodyChars = new char[contentLength];
-                int off = 0;
-                while (off < contentLength) {
-                    int r = reader.read(bodyChars, off, contentLength - off);
-                    if (r == -1)
-                        break;
-                    off += r;
-                }
-
-                lines.add(new String(bodyChars, 0, off));
-            }
-
+            int contentLength = readHeaders(reader, lines);
+            readBody(reader, lines, contentLength);
             return List.copyOf(lines);
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }
+    }
+
+    private int readHeaders(BufferedReader reader, List<String> lines) throws Exception {
+        String line;
+        int contentLength = 0;
+        while ((line = reader.readLine()) != null) {
+            lines.add(line);
+            if (line.isEmpty()) {
+                break; // 빈 줄 = 헤더 끝
+            }
+            if (line.regionMatches(true, 0, "Content-Length:", 0, "Content-Length:".length())) {
+                contentLength = Integer.parseInt(line.substring(line.indexOf(':') + 1).trim());
+            }
+        }
+
+        return contentLength;
+    }
+
+    private void readBody(BufferedReader reader, List<String> lines, int contentLength) throws Exception {
+        if (contentLength <= 0) {
+            return;
+        }
+        char[] bodyChars = new char[contentLength];
+        int offset = 0;
+        while (offset < contentLength) {
+            int r = reader.read(bodyChars, offset, contentLength - offset);
+            if (r == -1)
+                break;
+            offset += r;
+        }
+
+        lines.add(new String(bodyChars, 0, offset));
     }
 }
