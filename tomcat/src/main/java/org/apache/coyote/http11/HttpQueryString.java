@@ -1,23 +1,23 @@
-package org.apache.coyote;
+package org.apache.coyote.http11;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-public class QueryString {
+public class HttpQueryString {
     private final Map<String, String> parameters;
 
-    public QueryString(String uri) {
+    public HttpQueryString(String uri) {
         parameters = parseQueryString(uri);
     }
 
-    private QueryString(Map<String, String> parameters) {
+    private HttpQueryString(Map<String, String> parameters) {
         this.parameters = Map.copyOf(parameters);
     }
 
-    public QueryString copy() {
-        return new QueryString(this.parameters);
+    public HttpQueryString copy() {
+        return new HttpQueryString(this.parameters);
     }
 
     public boolean has(String... keys) {
@@ -46,8 +46,8 @@ public class QueryString {
         Map<String, String> parsedQuery = new HashMap<>();
         String[] queries = uri.substring(index + 1).split("&");
         for (String query : queries) {
-            String key = query.split("=")[0];
-            String value = query.split("=")[1];
+            String key = query.split("=", 2)[0];
+            String value = query.split("=", 2)[1];
             parsedQuery.put(key, value);
         }
 

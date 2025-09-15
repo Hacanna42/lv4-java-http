@@ -1,4 +1,4 @@
-package org.apache.coyote;
+package org.apache.coyote.http11;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +15,10 @@ public class HttpBody {
     public HttpBody(List<String> bodyLines) {
         this.bodyLines = bodyLines;
         this.formData = parseFormData(bodyLines);
+    }
+
+    public static HttpBody from(List<String> requestLines) {
+        return new HttpBody(requestLines.stream().dropWhile(line -> !line.isEmpty()).skip(1).toList());
     }
 
     public boolean hasKey(String... keys) {
@@ -43,7 +47,7 @@ public class HttpBody {
         String body = bodyLines.getFirst();
         String[] keyValues = body.split("&");
         for (String keyValue : keyValues) {
-            String[] parts = keyValue.split("=");
+            String[] parts = keyValue.split("=", 2);
             if (parts.length == 2) {
                 parameters.put(parts[0], parts[1]);
             }
